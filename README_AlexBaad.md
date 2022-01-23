@@ -2,7 +2,7 @@
 
 Course repository for Time Series Analysis at Duke University, spring 2022
 Student: Alex Baad
-
+git config --global user.email "alb172@duke.edu"
 **Meeting time:** MW 12:00 to 1:15 pm
 
 Zoom Meeting ID: 927 1600 1271 or click here.
