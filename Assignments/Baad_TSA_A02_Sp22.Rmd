@@ -21,9 +21,15 @@ R packages needed for this assignment:"forecast","tseries", and "dplyr". Install
 
 ```{r}
 #Load/install required package here
+install.packages(Rtools)
 install.packages('forecast')
+library(forecast)
 install.packages('tseries')
+library(tseries)
 install.packages('dplyr')
+library(tseries)
+install.packages('readx1')
+library(readxl)
 ```
 
 
@@ -33,7 +39,7 @@ Consider the data provided in the spreadsheet "Table_10.1_Renewable_Energy_Produ
 
 ```{r}
 #Importing data set
-raw_inflow_data <- read.table(file="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",header=FALSE,skip=0)
+energy_data <- read_xlsx(path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",skip = 10)
 ```
 
 
@@ -41,7 +47,8 @@ raw_inflow_data <- read.table(file="./Data/Table_10.1_Renewable_Energy_Productio
 You will work only with the following columns: Total Biomass Energy Production, Total Renewable Energy Production, Hydroelectric Power Consumption. Create a data frame structure with these three time series only. Use the command head() to verify your data.
 
 ```{r}
-
+energy_data <- energy_data[-c(1),4:6]
+head(energy_data)
 ```
 
 
@@ -49,7 +56,8 @@ You will work only with the following columns: Total Biomass Energy Production, 
 Transform your data frame in a time series object and specify the starting point and frequency of the time series using the function ts().
 
 ```{r}
-
+ts_energy_data <- ts(energy_data[,1:3])
+ts_energy_data
 ```
 
 
@@ -57,7 +65,12 @@ Transform your data frame in a time series object and specify the starting point
 Compute mean and standard deviation for these three series.
 
 ```{r}
-
+mean(ts_energy_data[,1])
+mean(ts_energy_data[,2])
+mean(ts_energy_data[,3])
+sd(ts_energy_data[,1])
+sd(ts_energy_data[,2])
+sd(ts_energy_data[,3])
 ```
 
 
@@ -65,31 +78,44 @@ Compute mean and standard deviation for these three series.
 Display and interpret the time series plot for each of these variables. Try to make your plot as informative as possible by writing titles, labels, etc. For each plot add a horizontal line at the mean of each series in a different color.
 
 ```{r}
-
+plot(ts_energy_data[,1],col="blue",ylab="frequency",main="Time Series Data for Total Biomass Energy Production")
+abline(h=mean(ts_energy_data[,1]),col="red")
+plot(ts_energy_data[,2],col="blue",ylab="frequency",main="Time Series Data for Total Renewable Energy Production")
+abline(h=mean(ts_energy_data[,2]),col="red")
+plot(ts_energy_data[,3],col="blue",ylab="frequency",main="Time Series Data for Hydroelectric Power Consumption")
+abline(h=mean(ts_energy_data[,3]),col="red")
 ```
 
 
 ## Question 5
 Compute the correlation between these three series. Are they significantly correlated? Explain your answer.
+None of the three series are signifacntly correlated as the probability value for each correlation is above the absolute value of 0.5
 
 ```{r}
-
+cor(ts_energy_data[,1],ts_energy_data[,2])
+cor(ts_energy_data[,1],ts_energy_data[,3])
+cor(ts_energy_data[,2],ts_energy_data[,3])
 ```
 
 
 ## Question 6
 Compute the autocorrelation function from lag 1 up to lag 40 for these three variables. What can you say about these plots? Do the three of them have the same behavior?
-
+All three of these plots show some form of seasonality. The first graph has the least amount of seasonality, the second has a little more, and the third graph has the most seasonality.
 ```{r}
-
+TBEP_acf=Acf(ts_energy_data[,1],lag.max=40, type="correlation", plot=TRUE)
+TREP_acf=Acf(ts_energy_data[,2],lag.max=40, type="correlation", plot=TRUE)
+HPC_acf=Acf(ts_energy_data[,3],lag.max=40, type="correlation", plot=TRUE)
 ```
 
 
 ## Question 7
 Compute the partial autocorrelation function from lag 1 to lag 40 for these three variables. How these plots differ from the ones in Q6?
+Since the PACF graph looks to remove the seasonality from the graphs in Q6, you can see that there is less of a seasonal distribution in the below graphs across each three variables.
 
 ```{r}
-
+TBEP_pacf=Pacf(ts_energy_data[,1],lag.max=40, plot=TRUE)
+TREP_pacf=Pacf(ts_energy_data[,2],lag.max=40, plot=TRUE)
+HPC_pacf=Pacf(ts_energy_data[,3],lag.max=40, plot=TRUE)
 ```
 
 
