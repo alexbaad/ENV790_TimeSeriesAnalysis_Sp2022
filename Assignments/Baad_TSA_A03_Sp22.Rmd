@@ -1,0 +1,200 @@
+---
+title: "ENV 790.30 - Time Series Analysis for Energy Data | Spring 2022"
+author: "Alex Baad"
+subtitle: Assignment 3 - Due date 02/08/22
+output:
+  pdf_document: default
+geometry: margin=2.54cm
+editor_options:
+  chunk_output_type: inline
+---
+  
+## Directions
+  
+You should open the .rmd file corresponding to this assignment on RStudio. The file is available on our class repository on Github. 
+
+Once you have the project open the first thing you will do is change "Student Name" on line 3 with your name. 
+Then you will start working through the assignment by  **creating code and output** that answer each question. Be sure to use this assignment document. Your report should contain the answer to each question and any plots/tables you obtained (when applicable).
+
+Please keep this R code chunk options for the report. It is easier for us to grade when we can see code and output together. And the tidy.opts will make sure that line breaks on your code chunks are automatically added for better visualization. 
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=80), tidy=FALSE) 
+```
+
+When you have completed the assignment, **Knit** the text and code into a single PDF file. Rename the pdf file such that it includes your first and last name (e.g., "LuanaLima_TSA_A03_Sp22.Rmd"). Submit this pdf using Sakai. 
+
+## Questions 
+
+Consider the same data you used for A2 from the spreadsheet "Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx". The data comes from the US Energy Information and Administration and corresponds to the January 2022 **Monthly** Energy Review. Once again you will work only with the following columns: Total Biomass Energy Production, Total Renewable Energy Production, Hydroelectric Power Consumption. Create a data frame structure with these three time series only. 
+
+R packages needed for this assignment:"forecast","tseries", and "Kendall". Install these packages, if you haven't done yet. Do not forget to load them before running your script, since they are NOT default packages.\\
+
+```{r}
+#Load/install required package here
+library(lubridate)
+library(ggplot2)
+library(forecast)
+library(tseries)
+library(Kendall)
+library(readxl)
+```
+
+##Trend Component
+
+### Q1
+Create a plot window that has one row and three columns. And then for each object on your data frame, fill the plot window with time series plot, ACF and PACF. You may use the some code form A2, but I want all three plots on the same window this time. (Hint: use par() function)
+
+```{r}
+energy_data <- read_xlsx(path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",skip = 12,col_names = FALSE)
+energy_data <- energy_data[-c(1),1:6]
+energy_data <- energy_data[,-c(2:3)]
+colnames(energy_data)=c("Date","Total.Biofuel","Total.Renewable","Hydropower")
+nenergy <- ncol(energy_data)
+nobs <- nrow(energy_data) 
+ts_energy_data <- ts(energy_data[,2:4],frequency=12)
+
+par(mfrow=c(1,3))
+for(i in 1:(nenergy-1)){
+  ts.plot(ts_energy_data[,i],ylab=colnames(energy_data[,i+1]))
+  Acf(ts_energy_data[,i],lag.max=40,main=paste("ACF",i,sep="")) 
+  Pacf(ts_energy_data[,i],lag.max=40,main=paste("PACF",i,sep=""))
+}
+```
+
+
+### Q2
+From the plot in Q1, do the series Total Biomass Energy Production, Total Renewable Energy Production, Hydroelectric Power Consumption appear to have a trend? If yes, what kind of trend?
+
+For Total Biomass Energy Production you can see a general upwards trend based off of the initial plot and looking at the ACF and PACF plot it appears there is some seasonaility as well, though not overly pronounced. For Total Renewable Energy Production it appears to have a general upward trend as well. In the ACF and PACF it appears there is more of a seasonal trend then there was for Total Biomass Energy Production. For Hydroelectric Power Consumption, it doesn't seem to have that much of a trend besides near the end of the data set which appears to have a slightly decreasing trend. For the ACF and PACF, it appears there there is a large seasonal trend, especially compared to Total Biomass Energy Production and Total Renewable Energy Production.
+
+### Q3
+Use the *lm()* function to fit a linear trend to the three time series. Ask R to print the summary of the regression. Interpret the regression output, i.e., slope and intercept. Save the regression coefficients for further analysis.
+
+For the Total Biomass Energy Production, the intercept of 135.3 tells us that at time 0, which aligns with January 1973, it is expected that the total biomass energy production would be 135.3 trillion BTU. The slope of 0.47 for Total Biomass Energy Production tells us that it is expected for an increase of 0.47 trillion Btu each month. For the Total Renewable Energy Production, the intercept of 323.51 tells us that at time 0, which aligns with January 1973, it is expected that the total renewable energy production would be 323.51 trillion BTU. The slope of 0.88 for Total Renewable Energy Production tells us that it is expected for an increase of 0.88 trillion Btu each month. For the Hydroelectric Power Consumption, the intercept of 259.01 tells us that at time 0, which aligns with January 1973, it is expected that the hydroelectric power consumption would be 259.01 trillion BTU. The slope of -0.08 for Hydroelectric Power Consumption tells us that it is expected for a decrease of 0.08 trillion Btu each month.
+
+```{r}
+t <- c(1:nobs)
+
+linear_trend_model_TBEP=lm(ts_energy_data[,1]~t)  
+summary(linear_trend_model_TBEP)
+beta0_TBEP=as.numeric(linear_trend_model_TBEP$coefficients[1])
+beta1_TBEP=as.numeric(linear_trend_model_TBEP$coefficients[2])
+
+linear_trend_model_TREP=lm(ts_energy_data[,2]~t)  
+summary(linear_trend_model_TREP)
+beta0_TREP=as.numeric(linear_trend_model_TREP$coefficients[1])
+beta1_TREP=as.numeric(linear_trend_model_TREP$coefficients[2])
+
+linear_trend_model_HPC=lm(ts_energy_data[,3]~t)  
+summary(linear_trend_model_HPC)
+beta0_HPC=as.numeric(linear_trend_model_HPC$coefficients[1])
+beta1_HPC=as.numeric(linear_trend_model_HPC$coefficients[2])
+```
+
+ 
+### Q4
+Use the regression coefficients from Q3 to detrend the series. Plot the detrended series and compare with the plots from Q1. What happened? Did anything change?
+For the Total Biomass Energy Production (TBEP) and Total Renewable Energy Production (TREP), the overall positive trends are now gone, but there appears to still be some seasonal trend for both. For the Hydroelectric Power Consumption (HPC), it appears that not much has changed besides the last part has less of a downward trend. This may be due to the slops for HBEP and HPEP being at least four times as large or greater than the slope trend for HPC which means the change for HPEP and HBEP will be more drastic than for HPC.
+```{r}
+detrend_energy_data_TBEP <- ts_energy_data[,1]-(beta0_TBEP+beta1_TBEP*t)
+detrend_energy_data_TREP <- ts_energy_data[,2]-(beta0_TREP+beta1_TREP*t)
+detrend_energy_data_HPC <- ts_energy_data[,3]-(beta0_HPC+beta1_HPC*t)
+
+plot(detrend_energy_data_TBEP,col="blue",ylab="Trillion BTU",main="Time Series Detrend TBEP")
+geom_abline(intercept = beta0_TBEP, slope = beta1_TBEP, color="red")
+plot(detrend_energy_data_TREP,col="blue",ylab="Trillion BTU",main="Time Series Detrend TREP")
+geom_abline(intercept = beta0_TREP, slope = beta1_TREP, color="red")
+plot(detrend_energy_data_HPC,col="blue",ylab="Trillion BTU",main="Time Series Detrend HPC")
+geom_abline(intercept = beta0_HPC, slope = beta1_HPC, color="red")
+```
+
+
+### Q5
+Plot ACF and PACF for the detrended series and compare with the plots from Q1. Did the plots change? How?
+Yes the ACF plots for all three seemed to have more of a pronounced seasonal trend. The PACF plots for all three seem to have less variability from before.
+
+```{r}
+Acf(detrend_energy_data_TBEP,lag.max=40,main="ACF Detrend for TBEP") 
+Pacf(detrend_energy_data_TBEP,lag.max=40,main="PACF Detrend for TBEP") 
+Acf(detrend_energy_data_TREP,lag.max=40,main="ACF Detrend for TREP") 
+Pacf(detrend_energy_data_TREP,lag.max=40,main="PACF Detrend for TREP") 
+Acf(detrend_energy_data_HPC,lag.max=40,main="ACF Detrend for HPC") 
+Pacf(detrend_energy_data_HPC,lag.max=40,main="PACF Detrend for HPC") 
+```
+
+
+## Seasonal Component
+
+Set aside the detrended series and consider the original series again from Q1 to answer Q6 to Q8.
+
+### Q6
+Do the series seem to have a seasonal trend? Which serie/series? Use function *lm()* to fit a seasonal means model (i.e. using the seasonal dummies) to this/these time series. Ask R to print the summary of the regression. Interpret the regression output. Save the regression coefficients for further analysis.
+After running the seasonal trend test for TBEP, it appears that there is no seasonal trend since the final p value, which measures the expected difference in trillion BTU from a given december to each month is not statisitcally significant. This measures whether the null hypothesis, which is that there is a seasonal trend, can be rejected. The same can be said for TREP where the final p value is also not statistically significant. However, for HPC, there is statistically significant evidence for every month besides February, March and June and the final p value that there is  statistically significant evidence of a seasonal trend.
+
+```{r}
+dummies <- seasonaldummy(ts_energy_data[,1]) 
+seas_means_model_TBEP=lm(energy_data$Total.Biofuel~dummies)
+summary(seas_means_model_TBEP)
+beta_int_TBEP=seas_means_model_TBEP$coefficients[1]
+beta_coeff_TBEP=seas_means_model_TBEP$coefficients[2:12]
+
+dummies <- seasonaldummy(ts_energy_data[,2]) 
+seas_means_model_TREP=lm(energy_data$Total.Renewable~dummies)
+summary(seas_means_model_TREP)
+beta_int_TREP=seas_means_model_TREP$coefficients[1]
+beta_coeff_TREP=seas_means_model_TREP$coefficients[2:12]
+
+dummies <- seasonaldummy(ts_energy_data[,3]) 
+seas_means_model_HPC=lm(energy_data$Hydropower~dummies)
+summary(seas_means_model_HPC)
+beta_int_HPC=seas_means_model_HPC$coefficients[1]
+beta_coeff_HPC=seas_means_model_HPC$coefficients[2:12]
+```
+
+
+### Q7
+Use the regression coefficients from Q6 to deseason the series. Plot the deseason series and compare with the plots from part Q1. Did anything change?
+The only difference I was able to see was that there seemed to be less variabilty, but it did not seem to have that much of a difference. For HPC, there appeared to be more of a difference as there is more variability.
+```{r}
+
+TBEP_seas_comp=array(0,nobs)
+for(i in 1:nobs){
+  TBEP_seas_comp[i]=(beta_int_TBEP+beta_coeff_TBEP%*%dummies[i,])
+}
+deseason_energy_data_TBEP <- ts_energy_data[,1]-TBEP_seas_comp
+
+TREP_seas_comp=array(0,nobs)
+for(i in 1:nobs){
+  TREP_seas_comp[i]=(beta_int_TREP+beta_coeff_TREP%*%dummies[i,])
+}
+deseason_energy_data_TREP <- ts_energy_data[,2]-TREP_seas_comp
+
+HPC_seas_comp=array(0,nobs)
+for(i in 1:nobs){
+  HPC_seas_comp[i]=(beta_int_HPC+beta_coeff_HPC%*%dummies[i,])
+}
+deseason_energy_data_HPC <- ts_energy_data[,3]-HPC_seas_comp
+
+plot(deseason_energy_data_TBEP,col="blue",ylab="Trillion BTU",main="Seasonal Detrend TBEP")
+
+plot(deseason_energy_data_TREP,col="blue",ylab="Trillion BTU",main="Seasonal Detrend TREP")
+
+plot(deseason_energy_data_HPC,col="blue",ylab="Trillion BTU",main="Seasonal Detrend HPC")
+
+```
+
+
+### Q8
+Plot ACF and PACF for the deseason series and compare with the plots from Q1. Did the plots change? How?
+HPC's ACF plot seemed to change the most with most of the seasonability been removed and being replaced with a straight downward trend. Both TBEP and TBEP did not have that much of a difference for their ACF graphs, which may be due to their seasonability regression output being smaller than for TBEP. The PCF graphs for all three seemed to have less variability.
+
+```{r}
+Acf(deseason_energy_data_TBEP,lag.max=40,main="ACF Seasonal Detrend for TBEP") 
+Pacf(deseason_energy_data_TBEP,lag.max=40,main="PACF Seasonal Detrend for TBEP") 
+Acf(deseason_energy_data_TREP,lag.max=40,main="ACF Seasonal Detrend for TREP") 
+Pacf(deseason_energy_data_TREP,lag.max=40,main="PACF Seasonal Detrend for TREP") 
+Acf(deseason_energy_data_HPC,lag.max=40,main="ACF Seasonal Detrend for HPC") 
+Pacf(deseason_energy_data_HPC,lag.max=40,main="PACF Seasonal Detrend for HPC")
+```
+

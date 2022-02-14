@@ -44,7 +44,7 @@ Today we will work with wind speed data.
 ```{r}
 
 #Importing time series data from text file#
-wind_data <- read.csv(file="../Data/Wind_Speed_PortArthurTX_Processed.csv",header=TRUE,stringsAsFactors = TRUE)
+wind_data <- read.csv(file="./Data/Wind_Speed_PortArthurTX_Processed.csv",header=TRUE,stringsAsFactors = TRUE)
 
 #creating data object
 wind_data$DATE <- ym(wind_data$DATE)
@@ -110,17 +110,19 @@ Additional info on decompose()
 
 ```{r}
 #Ex1: Using R decompose function decompose the wind data in seasonal, trend and random
-
-
+decompose_wind_data=decompose(clean_wind_data,"additive")
+plot(decompose_wind_data)
 #Ex2: Store the three component in separate vector
-  
+wind_random <- decompose_wind_data$random
+wind_trend <- decompose_wind_data$trend
+wind_seasonal <- decompose_wind_data$seasonal
 
 #Ex3: Create one data frame with all three vector and the Date columns from wind_data
-
+wind_decomposed <- data.frame("date"=full_wind_data$Date,wind_random,wind_trend,wind_seasonal)
 
 #Ex4: Inspect the data frame using head() and tail()
-
-
+head(wind_decomposed,10)
+tail(wind_decomposed,10)
 
 # Discuss the results
 
