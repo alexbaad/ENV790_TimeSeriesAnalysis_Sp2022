@@ -1,7 +1,7 @@
 ---
 title: "ENV 790.30 - Time Series Analysis for Energy Data | Spring 2022"
 subtitle: "Assignment 4 - Due date 02/17/22"
-author: "Student Name"
+author: "Alex Baad"
 output: pdf_document
 geometry: margin=2.54cm
 editor_options: 
@@ -15,14 +15,25 @@ editor_options:
 Once you have the project open the first thing you will do is change "Student Name" on line 3 with your name. 
 Then you will start working through the assignment by  **creating code and output** that answer each question. Be sure to use this assignment document. Your report should contain the answer to each question and any plots/tables you obtained (when applicable).
 
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=80), tidy=FALSE) 
+```
+
+
+
 When you have completed the assignment, **Knit** the text and code into a single PDF file. Rename the pdf file such that it includes your first and last name (e.g., "LuanaLima_TSA_A04_Sp21.Rmd"). Submit this pdf using Sakai. 
 
 R packages needed for this assignment: "xlsx" or "readxl", "ggplot2", "forecast","tseries", and "Kendall". Install these packages, if you haven't done yet. Do not forget to load them before running your script, since they are NOT default packages.\\
 
 ```{r}
 #Load/install required package here
-
-
+library(ggplot2)
+library(readxl)
+library(forecast)
+library(tseries)
+library(Kendall)
+library(lubridate)
+library(dplyr)
 ```
 
 ## Questions 
@@ -32,8 +43,14 @@ Consider the same data you used for A3 from the spreadsheet "Table_10.1_Renewabl
 
 ```{r}
 #Importing data set - using xlsx package
-
-
+TREP_data <- read_xlsx(path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",skip = 12,col_names = FALSE)
+TREP_data <- TREP_data[,1:6]
+TREP_data <- TREP_data[,-c(2:3)]
+TREP_data <- TREP_data[,-c(2,4)]
+colnames(TREP_data)=c("Date","TREP")
+nenergy <- ncol(TREP_data)
+nobs <- nrow(TREP_data) 
+ts_TREP_data <- ts(TREP_data[,2],frequency=12)
 ```
 
 
@@ -49,7 +66,8 @@ Difference the "Total Renewable Energy Production" series using function diff().
 Try differencing at lag 1 only once, i.e., make `lag=1` and `differences=1`. Plot the differenced series Do the series still seem to have trend?
 
 ```{r}
-
+diff_TREP_data <- diff(ts_TREP_data[,1],lag = 1,difference = 1)
+plot(diff_TREP_data,col="blue",ylab="Trillion BTU",main="Time Series Diff TREP")
 ```
 
 ### Q2
@@ -59,7 +77,14 @@ Now let's compare the differenced series with the detrended series you calculate
 Copy and paste part of your code for A3 where you compute regression for Total Energy Production and the detrended Total Energy Production
 
 ```{r}
-
+t <- c(1:nobs)
+linear_trend_model_TREP=lm(ts_TREP_data[,1]~t)  
+summary(linear_trend_model_TREP)
+beta0_TREP=as.numeric(linear_trend_model_TREP$coefficients[1])
+beta1_TREP=as.numeric(linear_trend_model_TREP$coefficients[2])
+detrend_energy_data_TREP <- ts_TREP_data[,1]-(beta0_TREP+beta1_TREP*t)
+plot(detrend_energy_data_TREP,col="blue",ylab="Trillion BTU",main="Time Series Detrend TREP")
+geom_abline(intercept = beta0_TREP, slope = beta1_TREP, color="red")
 ```
 
 ### Q3
@@ -67,8 +92,14 @@ Create a data frame with 4 columns: month, original series, detrended by Regress
 
 ```{r}
 #Data frame - remember to note include January 1973
-
-
+TREP_data <- TREP_data[-c(1),]
+df_detrend_TREP <- as.data.frame(detrend_energy_data_TREP)
+detrend_energy_data_TREP <- df_detrend_TREP[-c(1),]
+df_detrend_TREP <- as.data.frame(detrend_energy_data_TREP)
+diff_TREP_data <- as.data.frame(diff_TREP_data)
+colnames(diff_TREP_data)=c("TREP")
+TREP_all_data <- data.frame("date"=TREP_data$Date,"original TREP"=TREP_data$TREP,"Diff TREP"=diff_TREP_data$TREP,"Detrend TREP"=detrend_energy_data_TREP)
+str(TREP_all_data)
 ```
 
 ### Q4
@@ -76,7 +107,20 @@ Using ggplot() create a line plot that shows the three series together. Make sur
 
 ```{r}
 #Use ggplot
+nTREP <- ncol(TREP_all_data)-1
 
+par(mfrow=c(1,3))
+
+ggplot(as.data.frame(TREP_all_data), aes(x=date)) +
+  geom_line(aes(y=original.TREP),col='black') +
+  geom_line(aes(y=Diff.TREP),col='blue') +
+  geom_line(aes(y=Detrend.TREP),col='green') +
+  ylab(paste0("Trillion Btu")) + 
+  ggtitle('All TREP Graphs') +
+  theme(legend.position = "right",plot.title = element_text(size = rel(1.2), lineheight = .9,)) +
+  scale_color_manual(name='TREP Legend',
+                   breaks=c('Original','Diff','Detrend'),
+                   values=c('Original'='black','Diff'='blue','Detrend'='green'))
 ```
 
 
@@ -85,7 +129,10 @@ Plot the ACF for the three series and compare the plots. Add the argument `ylim=
 
 ```{r}
 #Compare ACFs
-
+par(mfrow=c(1,3))
+for(i in 1:(nTREP)){
+  Acf(TREP_all_data[,i],lag.max=40,main=paste("ACF",colnames(TREP_all_data)[(1+i)],sep=""),ylim=c(-0.5,1)) 
+}
 ```
 
 
@@ -93,7 +140,12 @@ Plot the ACF for the three series and compare the plots. Add the argument `ylim=
 Compute the Seasonal Mann-Kendall and ADF Test for the original "Total Renewable Energy Production" series. Ask R to print the results. Interpret the results for both test. Whats the conclusion from the Seasonal Mann Kendall test? What's the conclusion for the ADF test? Do they match what you observed in Q2? Recall that having a unit root means the series has a stochastic trend. And when a series has stochastic trend we need to use a different procedure to remove the trend.
 
 ```{r}
+SMK_TREP <- SeasonalMannKendall(ts_TREP_data[,1])
+print("Results for Seasonal Mann Kendall /n")
+print(summary(SMK_TREP))
 
+print("Results for ADF test/n")
+print(adf.test(ts_TREP_data[,1]),alternative = "stationary")
 ```
 
 ### Q7
@@ -101,7 +153,9 @@ Compute the Seasonal Mann-Kendall and ADF Test for the original "Total Renewable
 Aggregate the original "Total Renewable Energy Production" series by year. You can use the same procedure we used in class. Store series in a matrix where rows represent months and columns represent years. And then take the columns mean using function colMeans(). Recall the goal is the remove the seasonal variation from the series to check for trend. 
 
 ```{r}
-
+TREP_data_matrix <- matrix(ts_TREP_data[,1],byrow=FALSE,nrow=12)
+TREP_data_yearly <- colMeans(TREP_data_matrix)
+my_year <- c(year(first(TREP_all_data[,1])):year(last(TREP_all_data[,1])))
 ```
 
 ### Q8
@@ -109,6 +163,15 @@ Aggregate the original "Total Renewable Energy Production" series by year. You c
 Apply the Mann Kendal, Spearman correlation rank test and ADF. Are the results from the test in agreement with the test results for the non-aggregated series, i.e., results for Q6?
 
 ```{r}
+SMK_TREP_yearly <- MannKendall(TREP_data_yearly)
+print("Results for Yearly Mann Kendall /n")
+print(summary(SMK_TREP_yearly))
 
+print("Results from Spearman Correlation")
+sp_TREP=cor(TREP_data_yearly,my_year,method="spearman")
+print(sp_TREP)
+
+print("Results for ADF test on yearly data/n")
+print(adf.test(TREP_data_yearly, alternative = "stationary"))
 ```
 
