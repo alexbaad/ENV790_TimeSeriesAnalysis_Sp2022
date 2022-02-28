@@ -64,6 +64,7 @@ Difference the "Total Renewable Energy Production" series using function diff().
 * *differences* integer indicating how many times series should be differenced.
 
 Try differencing at lag 1 only once, i.e., make `lag=1` and `differences=1`. Plot the differenced series Do the series still seem to have trend?
+Now that the series has been differenced, the TREP data does not seem to have a trend.
 
 ```{r}
 diff_TREP_data <- diff(ts_TREP_data[,1],lag = 1,difference = 1)
@@ -107,38 +108,39 @@ Using ggplot() create a line plot that shows the three series together. Make sur
 
 ```{r}
 #Use ggplot
-nTREP <- ncol(TREP_all_data)-1
+nTREP <- ncol(TREP_all_data)
 
 par(mfrow=c(1,3))
 
 ggplot(as.data.frame(TREP_all_data), aes(x=date)) +
-  geom_line(aes(y=original.TREP),col='black') +
-  geom_line(aes(y=Diff.TREP),col='blue') +
-  geom_line(aes(y=Detrend.TREP),col='green') +
-  ylab(paste0("Trillion Btu")) + 
-  ggtitle('All TREP Graphs') +
-  theme(legend.position = "right",plot.title = element_text(size = rel(1.2), lineheight = .9,)) +
-  scale_color_manual(name='TREP Legend',
-                   breaks=c('Original','Diff','Detrend'),
-                   values=c('Original'='black','Diff'='blue','Detrend'='green'))
+  geom_line(aes(y=original.TREP,col="original.TREP")) +
+  geom_line(aes(y=Diff.TREP,col="Diff.TREP")) +
+  geom_line(aes(y=Detrend.TREP,col="Detrend.TREP")) +
+  labs(color="") +
+  scale_color_manual(values = c("original.TREP" = "blue", "Diff.TREP" = "red","Detrend.TREP" = "green"),
+                                labels=c("Original TREP", "Diff Trep", "Detrend TREP")) +
+  theme(legend.position = "bottom") +
+  ylab(label="All TREP Graphs")
 ```
 
 
 ### Q5
 Plot the ACF for the three series and compare the plots. Add the argument `ylim=c(-0.5,1)` to the Acf() function to make sure all three y axis have the same limits. Which method do you think was more efficient in eliminating the trend? The linear regression or differencing?
+The differencing process has done a better job at removing the trend as there is still a seasonal trend with the linear regression ACF graph. 
 
 ```{r}
 #Compare ACFs
 par(mfrow=c(1,3))
-for(i in 1:(nTREP)){
-  Acf(TREP_all_data[,i],lag.max=40,main=paste("ACF",colnames(TREP_all_data)[(1+i)],sep=""),ylim=c(-0.5,1)) 
+for(i in 2:(nTREP)){
+  Acf(TREP_all_data[,i],lag.max=40,main=paste("ACF",colnames(TREP_all_data)[(i)],sep=""),ylim=c(-0.5,1)) 
 }
 ```
 
 
 ### Q6
 Compute the Seasonal Mann-Kendall and ADF Test for the original "Total Renewable Energy Production" series. Ask R to print the results. Interpret the results for both test. Whats the conclusion from the Seasonal Mann Kendall test? What's the conclusion for the ADF test? Do they match what you observed in Q2? Recall that having a unit root means the series has a stochastic trend. And when a series has stochastic trend we need to use a different procedure to remove the trend.
-
+For the seasonal Mann-Kendall test, the p-value is below 0.05 therefore we reject the null hypothesis that there is no seasonal trend. For the ADF, the p-value is greater than 0.05 so you do not reject the null hypothesis that the series does include a 
+unit root which means that the series is stochastic and has a trend. This does match what I observed in the original trend that there is a seasonal trend in the original TREP data.
 ```{r}
 SMK_TREP <- SeasonalMannKendall(ts_TREP_data[,1])
 print("Results for Seasonal Mann Kendall /n")
@@ -161,6 +163,7 @@ my_year <- c(year(first(TREP_all_data[,1])):year(last(TREP_all_data[,1])))
 ### Q8
 
 Apply the Mann Kendal, Spearman correlation rank test and ADF. Are the results from the test in agreement with the test results for the non-aggregated series, i.e., results for Q6?
+For the Mann-Kendall and the ADF tests both still show that there is a seasonal trend even with the yearly aggregated data (p is below 0.05 in MK, and p is above 0.05 in ADF). For the spearman correlation, the correlation is closer to 1, which means that there is a trend.
 
 ```{r}
 SMK_TREP_yearly <- MannKendall(TREP_data_yearly)
