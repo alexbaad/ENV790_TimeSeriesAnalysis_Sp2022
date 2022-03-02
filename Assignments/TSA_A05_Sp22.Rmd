@@ -5,7 +5,7 @@ author: "Alex Baad"
 output: pdf_document
 geometry: margin=2.54cm
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 ## Directions
@@ -46,6 +46,7 @@ read_col_names <- read_xlsx(path="./Data/Table_10.1_Renewable_Energy_Production_
 colnames(energy_data) <- read_col_names
 head(energy_data)
 
+
 nobs=nrow(energy_data)
 nvar=ncol(energy_data)
 
@@ -60,6 +61,7 @@ energy_data <- energy_data[,1:9]
 energy_data <- energy_data[,-c(2:7)]
 colnames(energy_data)=c("Date","Solar","Wind")
 energy_data <- data.frame("Date"=energy_data$Date,"Solar"=as.numeric(energy_data$Solar),"Wind"=as.numeric(energy_data$Wind))
+energy_data$Date <- ymd(energy_data$Date)
 energy_data <- na.omit(energy_data)
 ts_energy_data <- ts(energy_data[,2:3],frequency=12)
 ```
@@ -70,14 +72,14 @@ Plot the Solar and Wind energy consumption over time using ggplot. Plot each ser
 
 ```{r}
 ggplot(as.data.frame(energy_data), aes(x=Date)) +
-  geom_line(aes(y=Solar,col="Solar") + 
+  geom_line(aes(y=Solar)) + 
   ylab(label="Solar Consumption") +
-  #scale_x\_date(date_breaks = "5 years", date_labels = "%Y")")
+  scale_x_date(date_breaks = "5 years", date_labels = "%Y")
 
 ggplot(as.data.frame(energy_data), aes(x=Date)) +
-  geom_line(aes(y=Wind,col="Wind") + 
+  geom_line(aes(y=Wind)) + 
   ylab(label="Wind Consumption") +
-  #scale_x\_date(date_breaks = "5 years", date_labels = "%Y")")
+  scale_x_date(date_breaks = "5 years", date_labels = "%Y")
 ```
 
 ### Q3
@@ -93,7 +95,7 @@ ggplot(as.data.frame(energy_data), aes(x=Date)) +
                                 labels=c("Solar Consumption", "Wind Consumption")) +
   theme(legend.position = "bottom") +
   ylab(label="Wind and Solar Consumption") +
-  #scale_x\_date(date_breaks = "5 years", date_labels = "%Y")")
+  scale_x_date(date_breaks = "5 years", date_labels = "%Y")
 
 ```
 
@@ -101,9 +103,10 @@ ggplot(as.data.frame(energy_data), aes(x=Date)) +
 
 Transform wind and solar series into a time series object and apply the decompose function on them using the additive option, i.e., `decompose(ts_data, type = "additive")`. What can you say about the trend component? What about the random component? Does the random component look random? Or does it appear to still have some seasonality on it?
 
+The trend component seems to have an upward trend starting around year 20. For the random component it seems to have some randomness until the same point that the trend component started seeing an upward trend. The random component starts to grow at this point and appears to have some seasonality to it.
 ```{r}
 decompose_energy_data=decompose(ts_energy_data,"additive")
-plot(decompose_inflow_data)
+plot(decompose_energy_data)
 energy_random <- decompose_energy_data$random 
 mean_inflow <- mean(energy_random)  
 sd_inflow <- sd(energy_random)
@@ -112,10 +115,11 @@ sd_inflow <- sd(energy_random)
 ### Q4
 
 Use the decompose function again but now change the type of the seasonal component from additive to multiplicative. What happened to the random component this time?
+Now that the seasonal component is multiplicative, the random component now seems to have less of a seasonal trend at the some point that the trend component has an upward trend, thought there is more of a variance in the random component when the trend component has not yet experienced an upward trend.
 
 ```{r}
 decompose_energy_data=decompose(ts_energy_data,"multiplicative")
-plot(decompose_inflow_data)
+plot(decompose_energy_data)
 energy_random <- decompose_energy_data$random 
 mean_inflow <- mean(energy_random)  
 sd_inflow <- sd(energy_random)
@@ -125,13 +129,21 @@ sd_inflow <- sd(energy_random)
 
 When fitting a model to this data, do you think you need all the historical data? Think about the data from 90s and early 20s. Are there any information from those years we might need to forecast the next six months of Solar and/or Wind consumption. Explain your response.
 
-> Answer:
+> Answer: I would say no, we do not need that historical data. This is because there was not much solar and wind development during that time so it is not relevant to the trend we are seeing. If we are trying to forecast the next six months, we should start when the trend component starts to have an upward trend as this is when solar and wind development takes off.
 
 ### Q6
 
 Create a new time series object where historical data starts on January 2012. Hint: use `filter()` function so that you don't need to point to row numbers, .i.e, `filter(xxxx, year(Date) >= 2012 )`. Apply the decompose function `type=additive` to this new time series. Comment the results. Does the random component look random? Think about our discussion in class about trying to remove the seasonal component and the challenge of trend on the seasonal component.
 
+By removing the years prior to 2012, it is now more obvious that there is a seasonal component to both the trend and random component. This is most likely since wind patterns and amount of sunlight both vary depending on the time of year. It would make more sense to remove the seasonal component first and then look at the random component.
 ```{r}
+energy_data <- filter(energy_data, year(Date) >= 2012)
+ts_energy_data <- ts(energy_data[,2:3],frequency=12)
+decompose_energy_data=decompose(ts_energy_data,"additive")
+plot(decompose_energy_data)
+energy_random <- decompose_energy_data$random 
+mean_inflow <- mean(energy_random)  
+sd_inflow <- sd(energy_random)
 
 ```
 
