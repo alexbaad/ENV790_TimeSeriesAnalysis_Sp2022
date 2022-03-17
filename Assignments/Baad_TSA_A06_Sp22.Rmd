@@ -7,8 +7,12 @@ geometry: margin=2.54cm
 header-includes:
   - \usepackage{enumerate}
   - \usepackage{enumitem}
+editor_options: 
+  chunk_output_type: inline
 ---
   
+### Because I did not add a seed to my RMD file, my results may vary, especially for questions 2 and 4#####
+
 ## Directions
   
   You should open the .rmd file corresponding to this assignment on RStudio. The file is available on our class repository on Github. And to do so you will need to fork our repository and link it to your RStudio.  
@@ -26,6 +30,10 @@ Packages needed for this assignment: "forecast","tseries". Do not forget to load
 
 ```{r}
 #Load/install required package here
+library(forecast)
+library(tseries)
+#install.packages("sarima")
+library(sarima)
 
 ```
 
@@ -37,11 +45,11 @@ Describe the important characteristics of the sample autocorrelation function (A
 
 \item AR(2)
 
-> Answer: 
+> Answer: For the ACF plot, it will decay exponentially no matter the p. For the PACF, the first three lags will be large and after that will drop off dramtically. The reason it is three lags when p = 2 is that the first lag is lag 0.
 
 \item MA(1)
 
-> Answer: 
+> Answer: For the ACF plot, it will have one lag that is large, then will drop negative dramtically and then level off. FOr the PACF, it will decay exponentially no matter the q.
 
 \end{enumerate}
 
@@ -49,7 +57,9 @@ Describe the important characteristics of the sample autocorrelation function (A
 Recall that the non-seasonal ARIMA is described by three parameters ARIMA$(p,d,q)$ where $p$ is the order of the autoregressive component, $d$ is the number of times the series need to be differenced to obtain stationarity and $q$ is the order of the moving average component. If we don't need to difference the series, we don't need to specify the "I" part and we can use the short version, i.e., the ARMA$(p,q)$. Consider three models: ARMA(1,0), ARMA(0,1) and ARMA(1,1) with parameters $\phi=0.6$ and $\theta= 0.9$. The $\phi$ refers to the AR coefficient and the $\theta$ refers to the MA coefficient. Use R to generate $n=100$ observations from each of these three models
 
 ```{r}
-
+arima_1 <- arima.sim(list(order = c(1,0,0),ar = 0.6), n=100)
+arima_2 <- arima.sim(list(order = c(0,0,1),ma = 0.9), n=100)
+arima_3 <- arima.sim(list(order = c(1,0,1),ar = 0.6,ma = 0.9), n=100)
 ```
 
 
@@ -58,29 +68,51 @@ Recall that the non-seasonal ARIMA is described by three parameters ARIMA$(p,d,q
 \item Plot the sample ACF for each of these models in one window to facilitate comparison (Hint: use command $par(mfrow=c(1,3))$ that divides the plotting window in three columns).  
 
 ```{r}
-
+par(mar=c(3,3,3,0));par(mfrow=c(1,3))
+Acf(arima_1,lag.max=40,main="ACF ARIMA (1,0) Model")
+Acf(arima_2,lag.max=40,main="ACF ARIMA (0,1) Model")
+Acf(arima_3,lag.max=40,main="ACF ARIMA (1,1) Model")
 ```
 
 
 \item Plot the sample PACF for each of these models in one window to facilitate comparison.  
 
 ```{r}
-
+par(mar=c(3,3,3,0));par(mfrow=c(1,3))
+Pacf(arima_1,lag.max=40,main="PACF ARIMA (1,0) Model")
+Pacf(arima_2,lag.max=40,main="PACF ARIMA (0,1) Model")
+Pacf(arima_3,lag.max=40,main="PACF ARIMA (1,1) Model")
 ```
 
 \item Look at the ACFs and PACFs. Imagine you had these plots for a data set and you were asked to identify the model, i.e., is it AR, MA or ARMA and the order of each component. Would you be identify them correctly? Explain your answer.
 
-> Answer:
+> Answer: For the first ARIMA model, you can tell that it is a (1,0) model since the ACF decays gradually and cuts off at lag 1. For the second ARIMA model, it is harder to tell since in the ACF model it does not have a clear cutoff at lag 1, also for the PACF there is not a clear decay. For the third model, it is even harder to tell since in the ACF model there is decay where in an ARIMA model (1,1) there should be just one lag. For the PACF, there shouldn't be any lags, but in my model there is 2 lags.
 
 \item Compare the ACF and PACF values R computed with the theoretical values you provided for the coefficients. Do they match? Explain your answer.
 
-> Answer: 
+> Answer: The only model where phi is closest is for the first model which makes sense since the second model does not include phi and the third model is influenced by the MA model.
 
 
 \item Increase number of observations to $n=1000$ and repeat parts (a)-(d).
 
-```{r}
+For the first model, it is a lot more clear as there is a clear decay in the ACF and a clear cutoff at lag 1 for the PACF. For the second model, it is more clear as there is a clear cutoff in the ACF and a clear decay for the PACF. For the third model, it is a little more clear since the ACF matches the AR model's ACF plot and for the PACF it matches the MA model's PACF.
 
+For the value of R, there is more of a match this time where the first lag for the first model's PACF matches the value of Phi.
+
+```{r}
+arima_1 <- arima.sim(list(order = c(1,0,0),ar = 0.6), n=10000)
+arima_2 <- arima.sim(list(order = c(0,0,1),ma = 0.9), n=1000)
+arima_3 <- arima.sim(list(order = c(1,0,1),ar = 0.6,ma = 0.9), n=1000)
+
+par(mar=c(3,3,3,0));par(mfrow=c(1,3))
+Acf(arima_1,lag.max=40,main="ACF ARIMA (1,0) Model")
+Acf(arima_2,lag.max=40,main="ACF ARIMA (0,1) Model")
+Acf(arima_3,lag.max=40,main="ACF ARIMA (1,1) Model")
+
+par(mar=c(3,3,3,0));par(mfrow=c(1,3))
+Pacf(arima_1,lag.max=40,main="PACF ARIMA (1,0) Model")
+Pacf(arima_2,lag.max=40,main="PACF ARIMA (0,1) Model")
+Pacf(arima_3,lag.max=40,main="PACF ARIMA (1,1) Model")
 ```
 
 \end{enumerate}
@@ -93,14 +125,26 @@ Consider the ARIMA model $y_t=0.7*y_{t-1}-0.25*y_{t-12}+a_t-0.1*a_{t-1}$
 
 \item Identify the model using the notation ARIMA$(p,d,q)(P,D,Q)_ s$, i.e., identify the integers $p,d,q,P,D,Q,s$ (if possible) from the equation.
 
+(1,0,1)(1,1,0)
+
 \item Also from the equation what are the values of the parameters, i.e., model coefficients. 
+
+Phi^1 = 0.7
+
+Phi^12 = -.25
+
+Theta^1 = .1
 
 \end{enumerate}
 ## Q4
 
 Plot the ACF and PACF of a seasonal ARIMA$(0, 1)\times(1, 0)_{12}$ model with $\phi =0 .8$ and $\theta = 0.5$ using R. The $12$ after the bracket tells you that $s=12$, i.e., the seasonal lag is 12, suggesting monthly data whose behavior is repeated every 12 months. You can generate as many observations as you like. Note the Integrated part was omitted. It means the series do not need differencing, therefore $d=D=0$. Plot ACF and PACF for the simulated data. Comment if the plots are well representing the model you simulated, i.e., would you be able to identify the order of both non-seasonal and seasonal components from the plots? Explain.
 
-```{r}
+The ACF and PACF plots are not that well representing of the model since the Phi of 0.8 is not well represented in the PACF model which instead shows Phi to be around 0.7. One thing that it does show is that in the PACF model there is only one long seasonal lag and in the ACF there are multiple lags. This shows that this is a SAR process where P equals 1 which is what we should get from the model. 
 
+```{r}
+sarima_model <- sim_sarima(model=list(ma=0.5,sar=0.8, nseasons=12), n=1000)
+Acf(sarima_model,lag.max=40,main="ACF Sarima Model")
+Pacf(sarima_model,lag.max=40,main="PACF Sarima Model")
 ```
 
