@@ -1,7 +1,7 @@
 ---
 title: "ENV 790.30 - Time Series Analysis for Energy Data | Spring 2022"
 subtitle: "Assignment 6 - Due date 03/25/22"
-author: "Student Name"
+author: "Alex Baad"
 output: pdf_document
 geometry: margin=2.54cm
 header-includes:
@@ -21,7 +21,12 @@ When you have completed the assignment, **Knit** the text and code into a single
 
 ```{r}
 #Load/install required package here
-
+library(forecast)
+library(tseries)
+library(cowplot)
+library(lubridate)
+library(ggplot2)
+library(Kendall)
 ```
 
 ## Importing and processing the data set
@@ -35,15 +40,35 @@ Packages needed for this assignment: "forecast","tseries". Do not forget to load
 Import the csv file and create a time series object for natural gas. Make you sure you specify the **start=** and **frequency=** arguments. Plot the time series over time, ACF and PACF.
 
 ```{r}
-
+nat_gas <- read.csv("./Data/Net_generation_United_States_all_sectors_monthly.csv",skip = 5,header=FALSE)
+nat_gas <- nat_gas[,-c(2:3)]
+nat_gas <- nat_gas[,-c(3:4)]
+colnames(nat_gas)=c("Date","NG")
+nat_gas <- data.frame("Date"=nat_gas$Date,"NG"=as.numeric(nat_gas$NG))
+nat_gas$Date <- my(nat_gas$Date)
+nvar <- ncol(nat_gas) - 1
+nobs <- nrow(nat_gas) 
+ts_nat_gas <- ts(nat_gas[,2],frequency=12)
+TS_Plot <- 
+  ggplot(nat_gas, aes(x=Date, y=NG)) +
+      geom_line()
+plot(TS_Plot)
+Acf(ts_nat_gas,lag.max=40,main=paste("ACF Nat Gas")) 
+Pacf(ts_nat_gas,lag.max=40,main=paste("PACF Nat Gas"))
 ```
 
 ### Q2
 
 Using the $decompose()$ or $stl()$ and the $seasadj()$ functions create a series without the seasonal component, i.e., a deseasonalized natural gas series. Plot the deseasonalized series over time and corresponding ACF and PACF. Compare with the plots obtained in Q1.
 
-```{r}
+Compared to the plots in Q1, the trend now appears to be more negative than positive. Besides that, it is apparent that the seasonality in the TS, ACF, and PACF are all gone.
 
+```{r}
+decompose_nat_gas=decompose(ts_nat_gas,"multiplicative")
+deseasonal_nat_gas <- seasadj(decompose_nat_gas)  
+plot(deseasonal_nat_gas,col="blue",ylab="Nat Gas",main="Seasonal Detrend")
+Acf(deseasonal_nat_gas,lag.max=40,main=paste("Deseason ACF")) 
+Pacf(deseasonal_nat_gas,lag.max=40,main=paste("Deseason PACF"))
 ```
 
 ## Modeling the seasonally adjusted or deseasonalized series
@@ -52,29 +77,52 @@ Using the $decompose()$ or $stl()$ and the $seasadj()$ functions create a series
 
 Run the ADF test and Mann Kendall test on the deseasonalized data from Q2. Report and explain the results.
 
-```{r}
+For the ADF test, since the p-value is less than 0.05, we reject the null hypothesis that the data has a trend. However, for the Mann-Kendall test, since the p-value is less than 0.05, we reject the null hypothesis that the data is stationary, which would mean that there is a trend. This is obviously odd, but since there appeared to be an obvious trend in the deseasoned series, I am going to trust the Mann-Kendall test that there is some trend to the series. 
 
+```{r}
+print("Results for ADF test")
+print(adf.test(deseasonal_nat_gas,alternative = "stationary"))
+
+print("Results of Mann Kendall on Deseasoned series")
+print(summary(MannKendall(deseasonal_nat_gas)))
 ```
 
 ### Q4
 
 Using the plots from Q2 and test results from Q3 identify the ARIMA model parameters $p,d$ and $q$. Note that in this case because you removed the seasonal component prior to identifying the model you don't need to worry about seasonal component. Clearly state your criteria and any additional function in R you might use. DO NOT use the $auto.arima()$ function. You will be evaluated on ability to can read the plots and interpret the test results.
+Since there did appear to be a trend, I wanted to difference the series. To do this I decided to set d = 1. I then plotted the new differened and deseasoned ACF and PACF plots. Looking at the ACF plot, it appears that p = 1 and looking at the PACF plot, it appears that q = 0.
 
 ```{r}
+n_diff <- ndiffs(deseasonal_nat_gas)
+cat("Number of differencing needed: ",n_diff)
+deseasonal_nat_gas_diff <- diff(deseasonal_nat_gas,differences=1)
+Acf(deseasonal_nat_gas_diff,lag.max=40,main=paste("Deseason ACF Diff")) 
+Pacf(deseasonal_nat_gas_diff,lag.max=40,main=paste("Deseason PACF Diff"))
 
 ```
 
 ### Q5
 
 Use $Arima()$ from package "forecast" to fit an ARIMA model to your series considering the order estimated in Q4. Should you allow for constants in the model, i.e., $include.mean = TRUE$ or $include.drift=TRUE$. **Print the coefficients** in your report. Hint: use the $cat()$ function to print.
+Since d = 1, I am setting $include.mean = FALSE$ and since $include.drift = TRUE$ might lead to better fits, I included it as well.
 
 ```{r}
-
+Model_110 <- Arima(deseasonal_nat_gas,order=c(1,1,0),include.mean = FALSE,include.drift=TRUE)
+print(Model_110)
 ```
 
 ### Q6
 
 Now plot the residuals of the ARIMA fit from Q5 along with residuals ACF and PACF on the same window. You may use the $checkresiduals()$ function to automatically generate the three plots. Do the residual series look like a white noise series? Why?
+The three series do look like white noise series since there appears to be no real trend or seasonality to the TS, ACF, nor PACF series. This is promising and means that my model could be a good fit.
+```{r}
+compare_aic <- data.frame(Model_110$aic)
+par(mar=c(3,3,3,0));par(mfrow=c(1,3))
+ts.plot(Model_110$residuals)
+Acf(Model_110$residuals,lag.max=40)
+Pacf(Model_110$residuals,lag.max=40)
+```
+
 
 ## Modeling the original series (with seasonality)
 
@@ -83,6 +131,19 @@ Now plot the residuals of the ARIMA fit from Q5 along with residuals ACF and PAC
 Repeat Q4-Q6 for the original series (the complete series that has the seasonal component). Note that when you model the seasonal series, you need to specify the seasonal part of the ARIMA model as well, i.e., $P$, $D$ and $Q$.
 
 ```{r}
+n_diff <- ndiffs(ts_nat_gas)
+cat("Number of differencing needed: ",n_diff)
+ts_nat_gas_diff <- diff(ts_nat_gas,differences=1)
+Acf(ts_nat_gas_diff,lag.max=40,main=paste("Original ACF Diff")) 
+Pacf(ts_nat_gas_diff,lag.max=40,main=paste("Original PACF Diff"))
+
+SARIMA_manual <- Arima(ts_nat_gas,order=c(1,1,0),seasonal=c(1,1,0),include.mean=FALSE,include.drift=TRUE)
+print(SARIMA_manual)
+
+par(mfrow=c(1,3))
+ts.plot(SARIMA_manual$residuals)
+Acf(SARIMA_manual$residuals,lag.max=40)
+Pacf(SARIMA_manual$residuals,lag.max=40)
 
 ```
 
@@ -90,9 +151,27 @@ Repeat Q4-Q6 for the original series (the complete series that has the seasonal 
 ### Q8
 
 Compare the residual series for Q7 and Q6. Can you tell which ARIMA model is better representing the Natural Gas Series? Is that a fair comparison? Explain your response.
+The first ARIMA model better fits the series, but that is not a fair comparison since the first ARIMA has already been deseasoned whereas the second ARIMA model still has the seasonality in it.
 
 ```{r}
+df_models <- data.frame(
+  date = nat_gas$Date,
+  observed = as.numeric(deseasonal_nat_gas),
+  ARIMA_110 = as.numeric(Model_110$fitted),
+  SARIMA_manual = as.numeric(SARIMA_manual$fitted)
+)
 
+Plot1 <-
+ggplot(df_models) +
+  geom_line(aes(x=date,y=observed),color="black") +
+  geom_line(aes(x=date,y=ARIMA_110),color="red")
+
+Plot2 <-
+ggplot(df_models) +
+  geom_line(aes(x=date,y=observed),color="black") +
+  geom_line(aes(x=date,y=SARIMA_manual),color="blue")
+
+cowplot::plot_grid(Plot1,Plot2,nrow=2)
 ```
 
 
@@ -103,17 +182,34 @@ Compare the residual series for Q7 and Q6. Can you tell which ARIMA model is bet
 ### Q9
 
 Use the $auto.arima()$ command on the **deseasonalized series** to let R choose the model parameter for you. What's the order of the best ARIMA model? Does it match what you specified in Q4?
+The best order for the deseasoned data is a ARIMA(1,1,0) with drift which is exactly what I got in Q4.
 
 ```{r}
+Model_autofit <- auto.arima(deseasonal_nat_gas,max.D=0,max.P = 0,max.Q=0)
+print(Model_autofit)
+compare_aic <- cbind(compare_aic,Model_autofit$aic)
 
+par(mar=c(3,3,3,0));par(mfrow=c(1,3))
+ts.plot(Model_autofit$residuals)
+Acf(Model_autofit$residuals,lag.max=40)
+Pacf(Model_autofit$residuals,lag.max=40)
+
+print(compare_aic)
 ```
 
 
 ### Q10
 
 Use the $auto.arima()$ command on the **original series** to let R choose the model parameters for you. Does it match what you specified in Q7?
+The model chose the fit, ARIMA(2,0,1)(2,1,2) with drift. This was unfortunately not what I had specified in Q7.
 
 ```{r}
+SARIMA_autofit <- auto.arima(ts_nat_gas)
+print(SARIMA_autofit)
 
+par(mfrow=c(1,3))
+ts.plot(SARIMA_autofit$residuals)
+Acf(SARIMA_autofit$residuals,lag.max=40)
+Pacf(SARIMA_autofit$residuals,lag.max=40)
 ```
 
